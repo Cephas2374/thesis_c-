@@ -19,6 +19,7 @@
 // Forward declarations for UMG widgets
 class UUserWidget;
 class UTextBlock;
+class ACesium3DTileset;
 
 USTRUCT(BlueprintType)
 struct FBuildingBoundingBox
@@ -60,6 +61,25 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
+	// ================= CESIUM STYLING CONTROLS =================
+	// Name (or substring) of the buildings tileset actor in the World Outliner.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Building Energy|Cesium")
+	FString BuildingsTilesetName = TEXT("bisingen");
+
+	// Enable Cesium 3D Tiles Styling (per-feature colors). If disabled, we will not call SetTilesetStyleFromJson.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Building Energy|Cesium")
+	bool bEnableCesiumPerFeatureStyling = true;
+
+	// Debug: force all buildings to red via Cesium styling to validate the pipeline.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Building Energy|Debug")
+	bool bDebugForceRedStyle = false;
+
+	// Candidate metadata keys for the building id in the tileset.
+	// We will try these in order (via coalesce) when building the style JSON.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Building Energy|Cesium")
+	TArray<FString> CandidateGmlIdPropertyKeys;
+
+
 	UPROPERTY(BlueprintReadWrite, Category = "Building Energy")
 	FString AccessToken;
 
@@ -89,6 +109,42 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Building Energy")
 	void ApplyColorsToCSiumTileset();
 	
+	// Debug and test functions
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Debug")
+	void TestColorSystem();
+	
+	// Color persistence for Cesium tileset refreshes
+	UPROPERTY()
+	FTimerHandle CesiumRefreshTimer;
+	
+	void SetupCesiumRefreshMonitoring();
+	void OnCesiumTilesetRefresh();
+	
+	// Direct color application (bypass Cesium metadata system)
+	void SetupDirectColorApplication();
+	void ApplyColorsDirectlyToGeometry();
+	void ApplyRepresentativeColorToAllBuildings(AActor* TilesetActor);
+	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Debug")
+	void LogColorCacheStatus();
+	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Debug")
+	void ForceApplyColors();
+	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Debug")
+	void DebugCesiumPropertyMapping();
+	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy")
+	void ApplyColorsNow();
+	
+	// Force immediate color application (bypasses all delays)
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Debug")  
+	void ForceColorsNow();
+	
+	// Material utilities for proper color application
+	UMaterialInstanceDynamic* CreateOrGetDynamicMaterial(UStaticMeshComponent* MeshComp, int32 MaterialIndex);
+	void EnsureProperMaterialParameters(UMaterialInstanceDynamic* DynMaterial);
+	
 	UFUNCTION(BlueprintCallable, Category = "Building Energy")
 	UMaterialInstanceDynamic* CreateBuildingEnergyMaterial();
 
@@ -112,6 +168,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Building Energy")
 	FString CurrentlyDisplayedBuildingId;
 	
+	// Currently clicked building for color highlighting
+	UPROPERTY(BlueprintReadOnly, Category = "Building Energy")
+	FString CurrentlyClickedBuildingId;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Building Energy")
+	FLinearColor CurrentlyClickedBuildingColor;
+	
 	UFUNCTION(BlueprintCallable, Category = "Building Energy Display")
 	void AssignMaterialToCesiumTileset();
 	
@@ -130,6 +193,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Building Energy Display")
 	void ApplyOfficialCesiumMetadataVisualization();
 	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Display")
+	void ApplyColorToClickedBuilding(const FString& BuildingGmlId);
+	
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Building Energy Display")
 	void CreateTextureBasedMaterial();
 	
@@ -145,6 +211,13 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Real-Time Data")  
 	void ForceRealTimeRefresh();
+	
+	// 🎨 COLOR APPLICATION FUNCTIONS
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Colors")
+	void ApplyBuildingColorsImmediately();
+	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Colors")
+	void RefreshAllBuildingColors();
 	
 	// WebSocket Real-Time Energy Functions
 	UFUNCTION(BlueprintCallable, Category = "WebSocket Energy")
@@ -188,6 +261,18 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Cache Statistics")
 	void LogCacheStatistics();
+	
+	// GML ID Case Sensitivity Validation Functions
+	UFUNCTION(BlueprintCallable, Category = "GML ID Validation")
+	void ValidateGmlIdCaseSensitivity();
+	
+	UFUNCTION(BlueprintCallable, Category = "GML ID Validation")
+	void CleanDuplicateColorCacheEntries();
+	
+	UFUNCTION(BlueprintCallable, Category = "GML ID Validation")
+	void TestColorRetrieval(const FString& TestGmlId);
+	
+	bool IsGmlIdCaseSensitive(const FString& GmlId);
 
 	void CreateBuildingAttributesForm(const FString& JsonData = TEXT(""));
 	
@@ -215,7 +300,20 @@ public:
 	
 	FString CreateCesiumColorExpression();
 	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Display")
+	void SetupCesiumColorMaterial();
+	
+	UFUNCTION(BlueprintCallable, Category = "Building Energy Display")
+	void ApplyTilesetColors();
+	
 	void CreateTestColors();
+	
+	// New Cesium styling functions
+	void ApplyCesiumTilesetStyling(AActor* CesiumActor);
+	void ApplyFallbackMaterialStyling(AActor* CesiumActor);
+	bool ApplyCesiumStyleJsonToTileset(ACesium3DTileset* Tileset, const FString& StyleJson) const;
+	TArray<FString> MakeIdVariants(const FString& InId) const;
+	void ApplyColorLookupMaterialToTileset(ACesium3DTileset* Tileset) const;
 
 private:
 	FLinearColor ConvertHexToLinearColor(const FString& HexColor);
@@ -247,6 +345,9 @@ private:
 	TMap<FString, FString> BuildingDataCache;
 	
 	TMap<FString, FLinearColor> BuildingColorCache;
+
+	// NEW: Store full JSON objects for color extraction
+	TMap<FString, TSharedPtr<FJsonObject>> BuildingJsonCache;
 
 	TMap<FString, FString> GmlIdCache;
 	
@@ -316,4 +417,12 @@ private:
 	FString CurrentBuildingGmlId;
 	
 	bool bShowScreenMessages; // Control whether to show on-screen debug messages
+
+private:
+	// Internal: prevents spamming style application every tick.
+	bool bCesiumStyleApplied = false;
+	// Retry until tileset becomes available/loaded.
+	int32 CesiumStyleRetryCount = 0;
+	float CesiumStyleRetryAccumulator = 0.0f;
+
 };

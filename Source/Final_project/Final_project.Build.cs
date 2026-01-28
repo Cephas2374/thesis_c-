@@ -22,25 +22,30 @@ public class Final_project : ModuleRules // Define build rules class inheriting 
 			"WebSockets", // WebSocket module for real-time energy updates [WEBSOCKET MODULE]
 			"Networking", // Networking support for WebSocket connections [NETWORKING MODULE]
 			"ApplicationCore", // Application core for input events [APP CORE MODULE]
-			"TouchInterface" // Touch interface for HoloLens gesture support [TOUCH INTERFACE MODULE]
-		}); // End of public dependency modules array [PUBLIC DEPENDENCIES END]
+            "CesiumRuntime"
+        }); // End of public dependency modules array [PUBLIC DEPENDENCIES END]
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  // Add private dependency modules [PRIVATE DEPENDENCIES START]
 			"ToolMenus" // Tool menus for editor integration [TOOL MENUS MODULE]
 		}); // End of private dependency modules array [PRIVATE DEPENDENCIES END]
 		
-		// HoloLens 2 specific configuration
-		if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			PublicDependencyModuleNames.AddRange(new string[] {
-				"MixedReality", // Mixed Reality support for HoloLens
-				"HeadMountedDisplay", // HMD support
-				"MRMesh" // Mixed Reality mesh support
-			});
-			
-			PublicDefinitions.Add("WITH_HOLOLENS=1");
-			bEnableExceptions = true; // Enable exceptions for HoloLens platform
-		}
+		// Note: Mixed Reality modules commented out for now - can be added back with proper setup
+		// Mixed Reality / HoloLens support - include for Windows builds
+		// if (Target.Platform == UnrealTargetPlatform.Win64)
+		// {
+		//	PublicDependencyModuleNames.AddRange(new string[] {
+		//		"MixedReality", // Mixed Reality support for HoloLens
+		//		"HeadMountedDisplay" // HMD support
+		//	});
+		//	
+		//	// Conditionally add MRMesh if available
+		//	if (Target.bBuildEditor || Target.Type == TargetType.Game)
+		//	{
+		//		PrivateDependencyModuleNames.Add("MRMesh");
+		//	}
+		//	
+		//	PublicDefinitions.Add("WITH_HOLOLENS=1");
+		// }
 
 		// Uncomment if you are using Slate UI [SLATE UI COMMENT]
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" }); [SLATE UI DEPENDENCIES - COMMENTED]
